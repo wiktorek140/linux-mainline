@@ -394,6 +394,24 @@ static const struct regulator_desc pm8950_pldo = {
 	.ops = &rpm_smps_ldo_ops,
 };
 
+static const struct regulator_desc pm8953_lnldo = {
+	.linear_ranges = (struct regulator_linear_range[]) {
+		REGULATOR_LINEAR_RANGE(1380000, 8, 15, 120000),
+		REGULATOR_LINEAR_RANGE(690000, 0, 7, 60000),
+	},
+	.n_linear_ranges = 2,
+	.n_voltages = 16,
+	.ops = &rpm_smps_ldo_ops,
+};
+
+static const struct regulator_desc pm8953_ult_nldo = {
+	.linear_ranges = (struct regulator_linear_range[]) {
+		REGULATOR_LINEAR_RANGE(375000, 0, 93, 12500),
+	},
+	.n_linear_ranges = 1,
+	.n_voltages = 94,
+	.ops = &rpm_smps_ldo_ops,
+};
 
 static const struct regulator_desc pm8994_hfsmps = {
 	.linear_ranges = (struct regulator_linear_range[]) {
@@ -767,6 +785,41 @@ static const struct rpm_regulator_data rpm_pm8950_regulators[] = {
 	{}
 };
 
+static const struct rpm_regulator_data rpm_pm8953_regulators[] = {
+	{  "s1", QCOM_SMD_RPM_SMPA,  1, &pm8998_hfsmps, "vdd_s1" },
+	// "s2", QCOM_SMD_RPM_SMPA,  2, &pm8998_hfsmps VDDCX, handled by RPMPD
+	{  "s3", QCOM_SMD_RPM_SMPA,  3, &pm8998_hfsmps, "vdd_s3" },
+	{  "s4", QCOM_SMD_RPM_SMPA,  4, &pm8998_hfsmps, "vdd_s4" },
+	// "s5", QCOM_SMD_RPM_SMPA,  5, &pm8950_ftsmps2p5 APC, handled via SPMI
+	{  "s6", QCOM_SMD_RPM_SMPA,  6, &pm8950_ftsmps2p5, "vdd_s6" },
+	// "s7", QCOM_SMD_RPM_SMPA,  7, &pm8998_hfsmps VDDMX, handled by RPMPD
+
+	{  "l1", QCOM_SMD_RPM_LDOA,  1, &pm8953_ult_nldo, "vdd_l1" },
+	{  "l2", QCOM_SMD_RPM_LDOA,  2, &pm8953_ult_nldo, "vdd_l2" },
+	{  "l3", QCOM_SMD_RPM_LDOA,  3, &pm8953_ult_nldo, "vdd_l3" },
+	{  "l4", QCOM_SMD_RPM_LDOA,  4, &pm8950_ult_pldo, "vdd_l4" },
+	{  "l5", QCOM_SMD_RPM_LDOA,  5, &pm8950_ult_pldo, "vdd_l5" },
+	{  "l6", QCOM_SMD_RPM_LDOA,  6, &pm8950_ult_pldo, "vdd_l6" },
+	{  "l7", QCOM_SMD_RPM_LDOA,  7, &pm8950_ult_pldo, "vdd_l7" },
+	{  "l8", QCOM_SMD_RPM_LDOA,  8, &pm8950_ult_pldo, "vdd_l8" },
+	{  "l9", QCOM_SMD_RPM_LDOA,  9, &pm8950_ult_pldo, "vdd_l9" },
+	{ "l10", QCOM_SMD_RPM_LDOA, 10, &pm8950_ult_pldo, "vdd_l10" },
+	{ "l11", QCOM_SMD_RPM_LDOA, 11, &pm8950_ult_pldo, "vdd_l11" },
+	{ "l12", QCOM_SMD_RPM_LDOA, 12, &pm8950_ult_pldo, "vdd_l12" },
+	{ "l13", QCOM_SMD_RPM_LDOA, 13, &pm8950_ult_pldo, "vdd_l13" },
+	{ "l14", QCOM_SMD_RPM_LDOA, 14, &pm8950_ult_pldo, "vdd_l14" },
+	{ "l15", QCOM_SMD_RPM_LDOA, 15, &pm8950_ult_pldo, "vdd_l15" },
+	{ "l16", QCOM_SMD_RPM_LDOA, 16, &pm8950_ult_pldo, "vdd_l16" },
+	{ "l17", QCOM_SMD_RPM_LDOA, 17, &pm8950_ult_pldo, "vdd_l17" },
+	{ "l18", QCOM_SMD_RPM_LDOA, 18, &pm8950_ult_pldo, "vdd_l18" },
+	{ "l19", QCOM_SMD_RPM_LDOA, 19, &pm8953_ult_nldo, "vdd_l19" },
+	{ "l20", QCOM_SMD_RPM_LDOA, 20, &pm8953_lnldo,    "vdd_l20" },
+	{ "l21", QCOM_SMD_RPM_LDOA, 21, &pm8953_lnldo,    "vdd_l21" },
+	{ "l22", QCOM_SMD_RPM_LDOA, 22, &pm8950_ult_pldo, "vdd_l22" },
+	{ "l23", QCOM_SMD_RPM_LDOA, 23, &pm8953_ult_nldo, "vdd_l22" },
+	{}
+};
+
 static const struct rpm_regulator_data rpm_pm8994_regulators[] = {
 	{ "s1", QCOM_SMD_RPM_SMPA, 1, &pm8994_ftsmps, "vdd_s1" },
 	{ "s2", QCOM_SMD_RPM_SMPA, 2, &pm8994_ftsmps, "vdd_s2" },
@@ -905,6 +958,7 @@ static const struct of_device_id rpm_of_match[] = {
 	{ .compatible = "qcom,rpm-pm8916-regulators", .data = &rpm_pm8916_regulators },
 	{ .compatible = "qcom,rpm-pm8941-regulators", .data = &rpm_pm8941_regulators },
 	{ .compatible = "qcom,rpm-pm8950-regulators", .data = &rpm_pm8950_regulators },
+	{ .compatible = "qcom,rpm-pm8953-regulators", .data = &rpm_pm8953_regulators },
 	{ .compatible = "qcom,rpm-pm8994-regulators", .data = &rpm_pm8994_regulators },
 	{ .compatible = "qcom,rpm-pm8998-regulators", .data = &rpm_pm8998_regulators },
 	{ .compatible = "qcom,rpm-pma8084-regulators", .data = &rpm_pma8084_regulators },
