@@ -1,0 +1,445 @@
+/* Copyright (c) 2017,2020, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+/dts-v1/;
+
+#include "msm8953.dtsi"
+#include "pm8953.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Samsung A6-Plus LTE Rev.4";
+	qcom,msm-id = <338 0>;
+	qcom,board-id = <8 4>;
+
+	reserved-memory {
+		/delete-node/other_ext_region@86400000;
+
+		other_ext_region@85b00000 {
+			reg = <0x0 0x85b00000 0x0 0x600000>;
+		};
+
+		wasted_mem@85000000 {
+			no-map;
+			reg = <0x0 0x85000000 0x0 0x00800000>;
+		};
+
+		useless@86300000 {
+			no-map;
+			reg = <0 0x86400000 0 0x400000>;
+		};
+
+		tzapp_region@82800000 {
+			no-map;
+			reg = <0x0 0x82800000 0x0 0x2800000>;
+		};
+
+		lk_wasted_mem@8f600000 {
+			no-map;
+			reg = <0x0 0x8f600000 0x0 0x300000>;
+		};
+
+		ramoops_mem: ramoops@86100000 {
+			compatible = "ramoops";
+			reg = <0 0x86100000 0 0x100000>;
+			record-size = <0x00000>;
+			console-size = <0xf0000>;
+			ftrace-size = <0x00000>;
+			pmsg-size = <0x10000>;
+		};
+
+		adsp_fw_mem: adsp_fw_region@8d600000 {
+			reg = <0x0 0x8d600000 0x0 0x1800000>;
+		};
+
+		/delete-node/wcnss_fw_region@8e700000;
+		wcnss_fw_mem: wcnss_fw_region@8ee00000 {
+			no-map;
+			reg = <0x0 0x8ee00000 0x0 0x700000>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&key_default>;
+
+		label = "GPIO Button";
+
+		volume-up {
+			label = "Volume Up";
+			gpios = <&msmgpio 85 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+		};
+	};
+
+	gpio-hall-sensor {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_hall_sensor_default>;
+
+		label = "GPIO Hall Effect Sensor";
+
+		hall-sensor {
+			label = "Hall Effect Sensor";
+			gpios = <&msmgpio 44 GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_LID>;
+			linux,can-disable;
+		};
+	};
+
+	reg_vdd_tsp: regulator-vdd-tsp {
+		compatible = "regulator-fixed";
+		regulator-name = "tsp_ldo";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		gpio = <&msmgpio 139 GPIO_ACTIVE_HIGH>;
+
+		enable-active-high;
+		regulator-boot-on;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tsp_en_default>;
+	};
+
+	i2c_10: i2c@10 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&msmgpio 39 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&msmgpio 38 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sm5708-fuelgauge@71 {
+			compatible = "sm5708-battery,a6plte";
+			reg = <0x71>;
+
+			interrupt-parent = <&msmgpio>;
+			interrupts = <62 IRQ_TYPE_LEVEL_HIGH>;
+
+			power-supplies = <&charger>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&sm5708_fg_default>;
+		};
+	};
+
+	i2c_13: i2c@13 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&msmgpio 98 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&msmgpio 99 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		muic: muic@25 {
+			compatible = "siliconmitus,sm5708-muic";
+			reg = <0x25>;
+
+			interrupt-parent = <&msmgpio>;
+			interrupts = <63 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&sm5708_muic_default &sm5708_rst_default>;
+		};
+
+		pmic: sm5708@49 {
+			compatible = "siliconmitus,sm5708";
+			reg = <0x49>;
+
+			interrupt-parent = <&msmgpio>;
+			interrupts = <60 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&charger_int_active>;
+
+			charger: sm5708-charger {
+				compatible = "siliconmitus,sm5708-charger";
+				float-voltage = <4350>;
+				input-current = <1500>;
+				charge-current = <1800>;
+
+				extcon = <&muic>;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&chg_en_default>;
+
+				enable-gpios = <&msmgpio 34 GPIO_ACTIVE_HIGH>;
+			};
+		};
+	};
+};
+
+&framebuffer {
+	status = "okay";
+
+	width = <1080>;
+	height = <2220>;
+	stride = <(1080 * 3)>;
+};
+
+&dsi0 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&pmx_mdss_default &mdss_te_default>;
+	pinctrl-1 = <&pmx_mdss_sleep &mdss_te_default>;
+
+	panel@0 {
+		compatible = "samsung,s6e3fa7-ams604nl01-fhd";
+		reg = <0>;
+
+		reset-gpios = <&msmgpio 50 GPIO_ACTIVE_HIGH>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_in: endpoint {
+					remote-endpoint = <&dsi0_out>;
+				};
+			};
+		};
+	};
+
+	ports {
+		port@1 {
+			endpoint {
+				remote-endpoint = <&panel_in>;
+				data-lanes = <0 1 2 3>;
+			};
+		};
+	};
+};
+
+&spmi_regulators {
+	status = "okay";
+};
+
+&i2c_2 {
+	status = "okay";
+
+	touchscreen@48 {
+		compatible = "samsung,s6sy761";
+
+		reg = <0x48>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <59 IRQ_TYPE_EDGE_FALLING>;
+
+		touchscreen-size-x = <4096>;
+		touchscreen-size-y = <4096>;
+
+		avdd-supply = <&reg_vdd_tsp>;
+		vdd-supply = <&reg_vdd_tsp>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_int_default>;
+	};
+};
+
+&sdhc_1 {
+	status = "okay";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on  &sdc1_rclk_on>;
+	pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off &sdc1_rclk_off>;
+};
+
+&sdhc_2 {
+	status = "okay";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
+	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+
+	cd-gpios = <&msmgpio 133 GPIO_ACTIVE_LOW>;
+};
+
+&msmgpio {
+	gpio-reserved-ranges = <12 4>; // Fingerprint sensor
+
+	sm5708_fg_default: sm5708_fg_default {
+		pins = "gpio38", "gpio39", "gpio62";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+	sm5708_muic_default: sm5708_muic_default {
+		pins = "gpio98", "gpio99", "gpio63";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+	sm5708_rst_default: sm5708_rst_default {
+		pins = "gpio61";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
+	};
+	charger_int_active: charger_int_active {
+		pins = "gpio60";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+	chg_en_default: chg_en_default {
+		pins = "gpio34";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+		output-high;
+	};
+	ts_int_default: ts_int_default {
+		pins = "gpio59";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+	tsp_en_default: tsp_en_default {
+		function = "gpio";
+		pins = "gpio139";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	gpio_hall_sensor_default: gpio-hall-sensor-default {
+		pins = "gpio44";
+		function = "gpio";
+		drive-strength = <2>;  /* 2 mA */
+		bias-disable;
+		input-enable;
+	};
+	pmx_mdss_default: pmx-mdss-default {
+		pins = "gpio35", "gpio93";
+		function = "gpio";
+		drive-strength = <8>; /* 8 mA */
+		bias-disable;
+		output-high;
+	};
+
+	pmx_mdss_sleep: pmx-mdss-sleep {
+		pins = "gpio35", "gpio93";
+		function = "gpio";
+		drive-strength = <2>; /* 2 mA */
+		bias-pull-down;
+	};
+	key_default: key-default {
+		pins = "gpio85";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+};
+
+&usb3 {
+	status = "okay";
+	extcon = <&muic>, <&muic>;
+};
+
+&usb3_dwc3 {
+	dr_mode = "otg";
+	extcon = <&muic>, <&muic>;
+};
+
+&smd_rpm_regulators {
+	compatible = "qcom,rpm-pm8953-regulators";
+
+	s1 { // Modem
+		regulator-min-microvolt = <864000>;
+		regulator-max-microvolt = <1152000>;
+	};
+	s3 { // CSI
+		regulator-min-microvolt = <1224000>;
+		regulator-max-microvolt = <1224000>;
+	};
+	s4 { // Audio codec
+		regulator-min-microvolt = <1896000>;
+		regulator-max-microvolt = <2048000>;
+	};
+	l1 { // unused
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1100000>;
+	};
+	l2 { // unused
+		regulator-min-microvolt = <975000>;
+		regulator-max-microvolt = <1225000>;
+	};
+	l3 { // Usb, mdss phy
+		regulator-min-microvolt = <925000>;
+		regulator-max-microvolt = <925000>;
+		regulator-allow-set-load;
+	};
+	l5 { // expander, wcndss, sdhci, codec
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+	l6 { // DSI
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+	l7 { // wcnss, modem, usb phy
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1900000>;
+	};
+	l8 { // sdhci
+		regulator-min-microvolt = <2900000>;
+		regulator-max-microvolt = <2900000>;
+	};
+	l9 { // wcnss
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3300000>;
+	};
+	l10 { // unused
+		regulator-min-microvolt = <2850000>;
+		regulator-max-microvolt = <2850000>;
+	};
+	l11 { // sdhci, accel sensor
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <3000000>;
+	};
+	l12 { // sdhci,
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3000000>;
+	};
+	l13 { // audio codec, usb phy
+		regulator-min-microvolt = <3075000>;
+		regulator-max-microvolt = <3125000>;
+	};
+	l15 { // unused
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+	l16 { // unused
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+	l17 { // dsi
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <3000000>;
+	};
+	l19 { // wcnss
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1350000>;
+	};
+	l22 { // unused
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2850000>;
+	};
+	l23 { // camera
+		regulator-min-microvolt = <975000>;
+		regulator-max-microvolt = <1225000>;
+	};
+};
