@@ -1372,6 +1372,9 @@ static int __ref kernel_init(void *unused)
 
 	rcu_end_inkernel_boot();
 
+	printk("mask=%lu\n", current->cpus_mask.bits[0]);
+	current->cpus_mask.bits[0] = 1;
+
 	if (ramdisk_execute_command) {
 		ret = run_init_process(ramdisk_execute_command);
 		if (!ret)
