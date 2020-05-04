@@ -3,11 +3,9 @@
 /dts-v1/;
 
 #include "msm8937.dtsi"
+#include <dt-bindings/regulator/qcom,rpm-smd-regulator.h>
 
 / {
-	model = "Qualcomm Technologies, Inc. MSM8917-PMI8937 QRD SKU5";
-	compatible = "qcom,msm8917-qrd-wt86617", "qcom,msm8917-qrd", "qcom,msm8917", "qcom,qrd";
-	qcom,msm-id = <0x12f 0x0 0x134 0x0 0x135 0x0>;
 	qcom,board-id = <0x41 0x8100>;
 };
 
@@ -47,12 +45,50 @@
 		regulator-always-on; // XXX
 	};
 
-	/* MSM core and graphics */
-	s2 {
-		regulator-min-microvolt = <1100000>;
-		regulator-max-microvolt = <1100000>;
-		regulator-always-on; // XXX
-	};
+	/* VDD_CX supply */
+  rpm-regulator-smpa2 {
+    status = "okay";
+    pm8937_s2_level: regulator-s2-level {
+      compatible = "qcom,rpm-smd-regulator";
+      regulator-name = "pm8937_s2_level";
+      qcom,set = <3>;
+      regulator-min-microvolt =
+        <RPM_SMD_REGULATOR_LEVEL_RETENTION>;
+      regulator-max-microvolt =
+        <RPM_SMD_REGULATOR_LEVEL_BINNING>;
+      qcom,use-voltage-level;
+    };
+
+    pm8937_s2_floor_level: regulator-s2-floor-level {
+      compatible = "qcom,rpm-smd-regulator";
+      regulator-name = "pm8937_s2_floor_level";
+      qcom,set = <3>;
+      regulator-min-microvolt =
+        <RPM_SMD_REGULATOR_LEVEL_RETENTION>;
+      regulator-max-microvolt =
+        <RPM_SMD_REGULATOR_LEVEL_BINNING>;
+      qcom,use-voltage-floor-level;
+      qcom,always-send-voltage;
+    };
+
+    pm8937_s2_level_ao: regulator-s2-level-ao {
+      compatible = "qcom,rpm-smd-regulator";
+      regulator-name = "pm8937_s2_level_ao";
+      qcom,set = <1>;
+      regulator-min-microvolt =
+        <RPM_SMD_REGULATOR_LEVEL_RETENTION>;
+      regulator-max-microvolt =
+        <RPM_SMD_REGULATOR_LEVEL_BINNING>;
+      qcom,use-voltage-level;
+    };
+
+    pm8937_cx_cdev: regulator-cx-cdev {
+      compatible = "qcom,regulator-cooling-device";
+      regulator-cdev-supply = <&pm8937_s2_floor_level>;
+      regulator-levels = <RPM_SMD_REGULATOR_LEVEL_NOM_PLUS
+          RPM_SMD_REGULATOR_LEVEL_RETENTION>;
+      #cooling-cells = <2>;
+    };
 
 	s3 {
 		regulator-min-microvolt = <1300000>;
@@ -88,12 +124,33 @@
 		regulator-always-on;
 	};
 
-	/* VDDMX */
-	l3 {
-		regulator-min-microvolt = <1225000>;
-		regulator-max-microvolt = <1225000>;
-		regulator-always-on; // XXX
-	};
+	/* VDD_MX supply */
+  rpm-regulator-ldoa3 {
+    status = "okay";
+    pm8937_l3_level_ao: regulator-l3-level-ao {
+      compatible = "qcom,rpm-smd-regulator";
+      regulator-name = "pm8937_l3_level_ao";
+      qcom,set = <1>;
+      regulator-min-microvolt =
+        <RPM_SMD_REGULATOR_LEVEL_RETENTION>;
+      regulator-max-microvolt =
+        <RPM_SMD_REGULATOR_LEVEL_TURBO>;
+      qcom,use-voltage-level;
+      qcom,always-send-voltage;
+    };
+
+    pm8937_l3_level_so: regulator-l3-level-so {
+      compatible = "qcom,rpm-smd-regulator";
+      regulator-name = "pm8937_l3_level_so";
+      qcom,set = <2>;
+      regulator-min-microvolt =
+        <RPM_SMD_REGULATOR_LEVEL_RETENTION>;
+      regulator-max-microvolt =
+        <RPM_SMD_REGULATOR_LEVEL_TURBO>;
+      qcom,init-voltage-level =
+        <RPM_SMD_REGULATOR_LEVEL_RETENTION>;
+      qcom,use-voltage-level;
+    };
 
 	/* Most digital I/Os, MSM pad groups 3 and 7, LPDDR, and eMMC */
 	l5 {
