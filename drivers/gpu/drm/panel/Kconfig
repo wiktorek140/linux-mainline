@@ -18,6 +18,17 @@ config DRM_PANEL_ARM_VERSATILE
 	  reference designs. The panel is detected using special registers
 	  in the Versatile family syscon registers.
 
+config DRM_PANEL_BOE_BS052FHM_A00_6C01
+	tristate "Boe BS052FHM-A00-6C01"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say y here if you want to enable support for Boe BS052FHM-A00-6C01
+	  LCD modules. The panel has a 1920x1080 resolution and uses 24 bit
+	  RGB per pixel. It provides a MIPI DSI interface to the host and has
+	  a built-in LED backlight.
+
 config DRM_PANEL_BOE_HIMAX8279D
 	tristate "Boe Himax8279d panel"
 	depends on OF
