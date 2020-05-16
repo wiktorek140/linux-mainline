@@ -419,6 +419,14 @@ config DRM_PANEL_SONY_ACX565AKM
 	  Say Y here if you want to enable support for the Sony ACX565AKM
 	  800x600 3.5" panel (found on the Nokia N900).
 
+config DRM_PANEL_TIANMA_TL052VDXP02
+	tristate "Tianma TL052VDXP02 panel"
+	depends on OF && GPIOLIB
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the Tianma TL052VDXP02
+	  1920x1080 5.2" panel (found on the Motorola Moto G5 variants)
+
 config DRM_PANEL_TPO_TD028TTEC1
 	tristate "Toppoly (TPO) TD028TTEC1 panel driver"
 	depends on OF && SPI
