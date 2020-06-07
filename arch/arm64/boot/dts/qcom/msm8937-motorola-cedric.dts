@@ -3,10 +3,13 @@
 /dts-v1/;
 
 #include "msm8937.dtsi"
+#include "msm8937-pmi8950.dtsi"
 #include <dt-bindings/regulator/qcom,rpm-smd-regulator.h>
 
 / {
-	qcom,board-id = <0x41 0x8100>;
+	model = "cedric";
+	compatible = "qcom,msm8937-cedric", "qcom,msm8937-moto", "qcom,msm8937";
+	qcom,msm-id = <294 66 0 0x10000>;
 };
 
 / {
@@ -19,11 +22,12 @@
 		stride = <(1080 * 3)>;
 		format = "r8g8b8";
 //		status = "okay";
+		power-domains = <&gcc MDSS_GDSC>;
 	};
 };
 
 &smd_rpm_regulators {
-	vdd_s1-supply = <&dummy_reg0>;
+	/*vdd_s1-supply = <&dummy_reg0>;
 	vdd_s2-supply = <&dummy_reg0>;
 	vdd_s3-supply = <&dummy_reg0>;
 	vdd_s4-supply = <&dummy_reg0>;
@@ -35,7 +39,7 @@
 	vdd_l4_l5_l6_l7_l16-supply = <&pm8937_s4>;
 	vdd_l20_l21-supply = <&pm8937_s4>;
 	vdd_l8_l11_l12_l17_l22-supply = <&dummy_reg0>;
-	vdd_l9_l10_l13_l14_l15_l18-supply = <&dummy_reg0>;
+	vdd_l9_l10_l13_l14_l15_l18-supply = <&dummy_reg0>;*/
 
 	/* MSM modem */
 	s1 {
