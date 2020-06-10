@@ -328,6 +328,26 @@ reserved-memory {
 	};
 };
 
+&blsp_i2c3 {
+  status = "okay";
+
+  touchscreen@20 {
+    reg = <0x20>;
+    compatible = "syna,rmi4-i2c";
+    interrupts-parent = <&msmgpio>;
+    interrupts-extended = <&msmgpio 65 0x2008>;
+
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    vdd-supply = <&vdda_touch>;
+    vio-supply = <&vdda_touch>;
+
+    syna,reset-delay-ms = <100>;
+    syna,startup-delay-ms = <500>;
+  };
+};
+
 &sdhc_1 {
 	status = "okay";
 
