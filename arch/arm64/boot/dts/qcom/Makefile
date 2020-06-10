@@ -28,3 +28,4 @@ dtb-$(CONFIG_ARCH_QCOM)	+= sm8250-mtp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs404-evb-1000.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs404-evb-4000.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8937-motorola-cedric.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= msm8937-motorola-montana.dtb
