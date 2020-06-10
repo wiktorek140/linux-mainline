@@ -267,14 +267,23 @@ reserved-memory {
 
 	/* Camera - analog */
 	l22 {
-		regulator-min-microvolt = <2800000>;
-		regulator-max-microvolt = <2800000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
 	/* Camera - digital */
 	l23 {
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
+	};
+	
+	vdda_touch: regulator-vdda_touch {
+		compatible = "regulator-fixed";
+		regulator-name = "vdda_touch";
+		gpio = <&msmgpio 59 0>;
+		startup-delay-us = <300>;
+		enable-active-high;
+		regulator-boot-on;
 	};
 };
 
