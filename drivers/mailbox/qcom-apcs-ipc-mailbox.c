@@ -24,14 +24,6 @@ struct qcom_apcs_ipc {
 	struct platform_device *clk;
 };
 
-static const struct regmap_config apcs_regmap_config = {
-	.reg_bits = 32,
-	.reg_stride = 4,
-	.val_bits = 32,
-	.max_register = 0xFFC,
-	.fast_io = true,
-};
-
 static int qcom_apcs_ipc_send_data(struct mbox_chan *chan, void *data)
 {
 	struct qcom_apcs_ipc *apcs = container_of(chan->mbox,
@@ -57,7 +49,15 @@ static int qcom_apcs_ipc_probe(struct platform_device *pdev)
 	const struct of_device_id apcs_clk_match_table[] = {
 		{ .compatible = "qcom,msm8916-apcs-kpss-global", },
 		{ .compatible = "qcom,qcs404-apcs-apps-global", },
-		{}
+		{},
+		{ .compatible = "qcom,msm8953-apcs-kpss-global", },
+		{},
+	};
+	struct regmap_config apcs_regmap_config = {
+		.reg_bits = 32,
+		.reg_stride = 4,
+		.val_bits = 32,
+		.fast_io = true,
 	};
 
 	apcs = devm_kzalloc(&pdev->dev, sizeof(*apcs), GFP_KERNEL);
@@ -65,9 +65,11 @@ static int qcom_apcs_ipc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (IS_ERR(base))
 		return PTR_ERR(base);
+
+	apcs_regmap_config.max_register = resource_size(res) - 4;
 
 	regmap = devm_regmap_init_mmio(&pdev->dev, base, &apcs_regmap_config);
 	if (IS_ERR(regmap))
@@ -100,6 +102,13 @@ static int qcom_apcs_ipc_probe(struct platform_device *pdev)
 							  NULL, 0);
 		if (IS_ERR(apcs->clk))
 			dev_err(&pdev->dev, "failed to register APCS clk\n");
+	} else if (of_match_device(&apcs_clk_match_table[3], &pdev->dev)) {
+		apcs->clk = platform_device_register_data(&pdev->dev,
+							  "qcom-apcs-msm8953-clk",
+							  PLATFORM_DEVID_NONE,
+							  NULL, 0);
+		if (IS_ERR(apcs->clk))
+			dev_err(&pdev->dev, "failed to register APCS clk\n");
 	}
 
 	platform_set_drvdata(pdev, apcs);
@@ -120,6 +129,7 @@ static int qcom_apcs_ipc_remove(struct platform_device *pdev)
 /* .data is the offset of the ipc register within the global block */
 static const struct of_device_id qcom_apcs_ipc_of_match[] = {
 	{ .compatible = "qcom,msm8916-apcs-kpss-global", .data = (void *)8 },
+	{ .compatible = "qcom,msm8953-apcs-kpss-global", .data = (void *)8 },
 	{ .compatible = "qcom,msm8996-apcs-hmss-global", .data = (void *)16 },
 	{ .compatible = "qcom,msm8998-apcs-hmss-global", .data = (void *)8 },
 	{ .compatible = "qcom,qcs404-apcs-apps-global", .data = (void *)8 },
