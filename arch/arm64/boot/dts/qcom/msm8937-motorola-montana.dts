@@ -27,7 +27,7 @@
 };
 
 / {
-reserved-memory {
+	reserved-memory {
 		ranges;
 
 		ramoops@ae000000 {
@@ -36,10 +36,10 @@ reserved-memory {
 			console-size = <0x40000>;
 			pmsg-size = <0x40000>;
 			record-size = <0x3f800>;
+		};
 	};
 };
-};
-	
+
 &smd_rpm_regulators {
 	/*vdd_s1-supply = <&dummy_reg0>;
 	vdd_s2-supply = <&dummy_reg0>;
