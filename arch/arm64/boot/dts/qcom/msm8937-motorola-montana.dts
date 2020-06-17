@@ -399,46 +399,71 @@
 	};
 };
 
+&soc {
+	blsp1_dma: qcom,sps-dma@7884000 {
+		#dma-cells = <4>;
+		compatible = "qcom,sps-dma";
+		reg = <0x07884000 0x1f000>;
+		interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
+		qcom,summing-threshold = <10>;
+	};
+};
+
 &blsp_i2c3 {
-  status = "okay";
+	// clock-frequency = <400000>;
+	status = "okay";
 
-  touchscreen@20 {
-    reg = <0x20>;
-    compatible = "syna,rmi4-i2c";
-    interrupts-parent = <&msmgpio>;
-    interrupts-extended = <&msmgpio 65 0x2008>;
+	touchscreen@20 {
+		reg = <0x20>;
+		compatible = "syna,rmi4-i2c";
+		interrupts-parent = <&msmgpio>;
+		interrupts-extended = <&msmgpio 65 0x0>;
 
-    #address-cells = <1>;
-    #size-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-    vdd-supply = <&vdda_touch>;
-    vio-supply = <&vdda_touch>;
+		vdd-supply = <&pm8937_l10>;
+		//vio-supply = <&vdda_touch>;
+		gpios = <&msmgpio 65 0x0>,
+		<&msmgpio 64 0>;
 
-    syna,reset-delay-ms = <100>;
-    syna,startup-delay-ms = <500>;
-  };
+		pinctrl-names = "init", "suspend";
+		pinctrl-0 = <&ts_reset &touch_int_default>;
+		pinctrl-1 = <&ts_reset_active &touch_int_active>;
+
+		syna,reset-delay-ms = <100>;
+
+		rmi4-f01@1 {
+			reg = <0x1>;
+			syna,nosleep-mode = <1>; // Allow sleeping
+		};
+
+		rmi4-f12@12 {
+			reg = <0x12>;
+			syna,sensor-type = <1>; // Touchscreen
+		};
+	};
 };
 
 &sdhc_1 {
-	status = "okay";
+	status = "ok";
+	reg = <0x07824900 0x500>, <0x07824000 0x800>, <0x7824e00 0x200>;
+	reg-names = "hc_mem", "core_mem", "cmdq_mem";
 
-	/*vmmc-supply = <&pm8937_l8>;
-	vqmmc-supply = <&pm8937_l5>;*/
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
 
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on>;
-	pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off>;
+	pinctrl-0 = <&sdc1_on>;
+	pinctrl-1 = <&sdc1_off>;
 };
 
 &sdhc_2 {
-	status = "okay";
-
-	vmmc-supply = <&pm8937_l11>;
-	vqmmc-supply = <&pm8937_l12>;
+	status = "ok";
 
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
-	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+	pinctrl-0 = <&sdc2_on>;
+	pinctrl-1 = <&sdc2_off>;
 
 	cd-gpios = <&msmgpio 67 0>;
 };
