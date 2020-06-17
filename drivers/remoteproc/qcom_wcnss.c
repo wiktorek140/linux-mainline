@@ -24,6 +24,8 @@
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
 #include <linux/rpmsg/qcom_smd.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 
 #include "qcom_common.h"
 #include "remoteproc_internal.h"
@@ -56,6 +58,7 @@ struct wcnss_data {
 
 	const struct wcnss_vreg_info *vregs;
 	size_t num_vregs;
+	const char **pds_names;
 };
 
 struct qcom_wcnss {
@@ -84,6 +87,9 @@ struct qcom_wcnss {
 
 	struct completion start_done;
 	struct completion stop_done;
+
+	struct device *pds[3];
+	int num_pds;
 
 	phys_addr_t mem_phys;
 	phys_addr_t mem_reloc;
@@ -128,6 +134,17 @@ static const struct wcnss_data pronto_v2_data = {
 		{ "vddpx", 1800000, 1800000, 0 },
 	},
 	.num_vregs = 3,
+};
+
+static const struct wcnss_data pronto_v3_data = {
+	.pmu_offset = 0x1004,
+	.spare_offset = 0x1088,
+
+	.vregs = (struct wcnss_vreg_info[]) {
+		{ "vddpx", 1800000, 1800000, 0 },
+	},
+	.num_vregs = 1,
+	.pds_names = (const char*[]) { "cx", "mx", NULL },
 };
 
 void qcom_wcnss_assign_iris(struct qcom_wcnss *wcnss,
@@ -211,7 +228,7 @@ static void wcnss_configure_iris(struct qcom_wcnss *wcnss)
 static int wcnss_start(struct rproc *rproc)
 {
 	struct qcom_wcnss *wcnss = (struct qcom_wcnss *)rproc->priv;
-	int ret;
+	int ret, i;
 
 	mutex_lock(&wcnss->iris_lock);
 	if (!wcnss->iris) {
@@ -223,6 +240,13 @@ static int wcnss_start(struct rproc *rproc)
 	ret = regulator_bulk_enable(wcnss->num_vregs, wcnss->vregs);
 	if (ret)
 		goto release_iris_lock;
+
+	for (i = 0; i < wcnss->num_pds; i++) {
+		dev_pm_genpd_set_performance_state(wcnss->pds[i], INT_MAX);
+		ret = pm_runtime_get_sync(wcnss->pds[i]);
+		if (ret < 0)
+			goto disable_regulators;
+	}
 
 	ret = qcom_iris_enable(wcnss->iris);
 	if (ret)
@@ -253,6 +277,10 @@ static int wcnss_start(struct rproc *rproc)
 disable_iris:
 	qcom_iris_disable(wcnss->iris);
 disable_regulators:
+	for (i--; i >= 0; i--) {
+		dev_pm_genpd_set_performance_state(wcnss->pds[i], 0);
+		pm_runtime_put(wcnss->pds[i]);
+	}
 	regulator_bulk_disable(wcnss->num_vregs, wcnss->vregs);
 release_iris_lock:
 	mutex_unlock(&wcnss->iris_lock);
@@ -400,6 +428,31 @@ static int wcnss_init_regulators(struct qcom_wcnss *wcnss,
 	return 0;
 }
 
+static int wcnss_pds_attach(struct qcom_wcnss *wcnss,
+				const struct wcnss_data *data)
+{
+	int ret, i;
+	struct device **pds = wcnss->pds;
+	for (i = 0; i < ARRAY_SIZE(wcnss->pds) &&
+			data->pds_names && data->pds_names[i]; i ++) {
+		pds[i] = dev_pm_domain_attach_by_name(wcnss->dev, data->pds_names[i]);
+		if (IS_ERR_OR_NULL(pds[i])) {
+			ret = PTR_ERR(pds[i]) ? : -ENODATA;
+			goto detach_regulators;
+		}
+	}
+
+	wcnss->num_pds = i > 0 ? i - 1 : 0;
+
+	return 0;
+
+detach_regulators:
+	for (i--; i >= 0; i--)
+		dev_pm_domain_detach(pds[i], false);
+
+	return ret;
+}
+
 static int wcnss_request_irq(struct qcom_wcnss *wcnss,
 			     struct platform_device *pdev,
 			     const char *name,
@@ -509,6 +562,10 @@ static int wcnss_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_rproc;
 
+	ret = wcnss_pds_attach(wcnss, data);
+	if (ret)
+		goto free_rproc;
+
 	ret = wcnss_request_irq(wcnss, pdev, "wdog", false, wcnss_wdog_interrupt);
 	if (ret < 0)
 		goto free_rproc;
@@ -582,6 +639,7 @@ static const struct of_device_id wcnss_of_match[] = {
 	{ .compatible = "qcom,riva-pil", &riva_data },
 	{ .compatible = "qcom,pronto-v1-pil", &pronto_v1_data },
 	{ .compatible = "qcom,pronto-v2-pil", &pronto_v2_data },
+	{ .compatible = "qcom,pronto-v3-pil", &pronto_v3_data },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, wcnss_of_match);
