@@ -372,3 +372,11 @@
 
 	cd-gpios = <&msmgpio 67 0>;
 };
+
+&otg {
+	status = "ok";
+};
+
+&usb_hs_phy {
+	qcom,init-seq = /bits/ 8 <0x33 0x80 0x38 0x81 0x2f 0x82 0x13 0x83 0xff>;
+};
