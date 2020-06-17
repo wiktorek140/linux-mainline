@@ -46,14 +46,14 @@
 	vdd_s3-supply = <&dummy_reg0>;
 	vdd_s4-supply = <&dummy_reg0>;
 	vdd_s5-supply = <&dummy_reg0>;
-	vdd_s6-supply = <&dummy_reg0>;
+	vdd_s6-supply = <&dummy_reg0>;*/
 	vdd_l1_l19-supply = <&pm8937_s3>;
 	vdd_l2_l23-supply = <&pm8937_s3>;
 	vdd_l3-supply = <&pm8937_s3>;
 	vdd_l4_l5_l6_l7_l16-supply = <&pm8937_s4>;
 	vdd_l20_l21-supply = <&pm8937_s4>;
-	vdd_l8_l11_l12_l17_l22-supply = <&dummy_reg0>;
-	vdd_l9_l10_l13_l14_l15_l18-supply = <&dummy_reg0>;*/
+	//vdd_l8_l11_l12_l17_l22-supply = <&dummy_reg0>;
+	//vdd_l9_l10_l13_l14_l15_l18-supply = <&dummy_reg0>;
 
 	/* MSM modem */
 	s1 {
@@ -63,7 +63,7 @@
 		regulator-always-on; // XXX
 	};
 
-    /* VDD_CX supply */
+	/* VDD_CX supply */
 	rpm-regulator-smpa2 {
 		status = "okay";
 		pm8937_s2_level: regulator-s2-level {
@@ -144,7 +144,7 @@
 		regulator-always-on;
 	};
 
-    /* VDD_MX supply */
+	/* VDD_MX supply */
 	rpm-regulator-ldoa3 {
 		status = "okay";
 		pm8937_l3_level_ao: regulator-l3-level-ao {
