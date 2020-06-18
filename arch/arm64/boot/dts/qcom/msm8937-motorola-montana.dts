@@ -13,15 +13,20 @@
 };
 
 / {
+	chosen {
+		stdout-path = "display0";
+		bootargs = "console=null";
+	};
+
 	framebuffer0: framebuffer@90001000 {
 		compatible = "simple-framebuffer";
 		reg = <0 (0x90001000) 0 (1080*1920*3)>;
-		//reg = <0x90000000 (720*400*4)>;
 		width = <1080>;
 		height = <1920>;
 		stride = <(1080 * 3)>;
 		format = "r8g8b8";
-//		status = "okay";
+		status = "okay";
+		display = &mdss;
 		power-domains = <&gcc MDSS_GDSC>;
 	};
 };
@@ -368,6 +373,34 @@
 			bias-pull-up;
 		};
 	};
+	
+	pmx_mdss {
+		mdss_default: mdss_default {
+			pinmux {
+				pins = "gpio60";
+			};
+
+			pinconf {
+				pins = "gpio60";
+				drive-strength = <8>; /* 8 mA */
+				bias-disable = <0>; /* no pull */
+				output-high;
+			};
+		};
+
+		mdss_sleep: mdss_sleep {
+			pinmux {
+				pins = "gpio60";
+			};
+
+			pinconf {
+				pins = "gpio60";
+				drive-strength = <2>; /* 2 mA */
+				bias-pull-down; /* pull down */
+				input-enable;
+			};
+		};
+	};
 };
 
 &sdc2_on {
@@ -407,10 +440,44 @@
 		interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
 		qcom,summing-threshold = <10>;
 	};
+
+	mdss@1a00000 {
+		dsi@1a94000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vdda-supply = <&pm8937_l2>;
+			vddio-supply = <&pm8937_l6>;
+		};
+
+		/delete-node/ dsi-phy@1a94300;
+
+		dsi_phy0: dsi-phy@1a94a00 {
+			compatible = "qcom,dsi-phy-28nm-hpm-fam-b";
+			
+			reg = <0x001a94a00 0x100>,
+			      <0x1a94b00 0x300>,
+			      <0x1a94300 0x188>;
+
+			reg-names = "dsi_phy",
+			            "dsi_phy_lane",
+			            "dsi_pll";
+
+			#clock-cells = <1>;
+			#phy-cells = <0>;
+
+			clocks = <&gcc GCC_MDSS_AHB_CLK>;
+			clock-names = "iface";
+			
+			vddio-supply = <&pm8937_l6>;
+			qcom,dsi-phy-regulator-ldo-mode;
+		};
+	};
 };
 
 &blsp_i2c3 {
-	// clock-frequency = <400000>;
+	reg = <0x078b7000 0x600>;
+	clock-frequency = <400000>;
 	status = "okay";
 
 	touchscreen@20 {
@@ -423,9 +490,9 @@
 		#size-cells = <0>;
 
 		vdd-supply = <&pm8937_l10>;
-		//vio-supply = <&vdda_touch>;
-		gpios = <&msmgpio 65 0x0>,
-		<&msmgpio 64 0>;
+		vio-supply = <&pm8937_l6>;
+		gpios = <&msmgpio 65 0>,
+		<&msmgpio 64 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-names = "init", "suspend";
 		pinctrl-0 = <&ts_reset &touch_int_default>;
@@ -474,4 +541,65 @@
 
 &usb_hs_phy {
 	qcom,init-seq = /bits/ 8 <0x33 0x80 0x38 0x81 0x2f 0x82 0x13 0x83 0xff>;
+};
+
+
+&ibb_vreg {
+	regulator-min-microvolt = <4600000>;
+	regulator-max-microvolt = <5500000>;
+	regulator-max-microamp = <1550>;
+
+};
+
+&lab_vreg {
+	regulator-min-microvolt = <4600000>;
+	regulator-max-microvolt = <5500000>;
+	regulator-max-microamp = <800>;
+
+};
+
+&dsi0 {
+
+	reg = <0x1a94000 0x300>,
+		<0x1a94400 0x280>,
+		<0x1a94b80 0x30>,
+		<0x193e000 0x30>;
+	reg-names = "dsi_ctrl", "dsi_phy",
+	      "dsi_phy_regulator", "mmss_misc_phys";
+	
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&mdss_default>;
+	pinctrl-1 = <&mdss_sleep>;
+
+	panel@0 {
+		compatible = "tianma,521";
+		reg = <0>;
+
+		power-supply = <&pm8937_l17>;
+		reset-gpios = <&msmgpio 60 0>;
+		
+		vsp-supply = <&lab_vreg>;
+		vsn-supply = <&ibb_vreg>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_in: endpoint {
+					remote-endpoint = <&dsi0_out>;
+				};
+			};
+		};
+	};
+
+	ports {
+		port@1 {
+			endpoint {
+				remote-endpoint = <&panel_in>;
+				data-lanes = <0 1 2 3>;
+			};
+		};
+	};
 };

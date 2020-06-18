@@ -29,6 +29,7 @@
 		rproc0 = &adsp;
 		rproc1 = &pronto;
 		rproc2 = &q6;
+		display0 = &mdss;
 	};
 
 	chosen { };
@@ -519,8 +520,6 @@
 			clocks = <&gcc GCC_BLSP1_AHB_CLK>,
 				 <&gcc GCC_BLSP1_QUP3_I2C_APPS_CLK>;
 			clock-names = "iface", "core";
-			//dmas = <&blsp1_dma 9>, <&blsp1_dma 8>;
-			//dma-names = "rx", "tx";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&i2c3_default>;
 			pinctrl-1 = <&i2c3_sleep>;
