@@ -5,6 +5,7 @@
 #include "msm8937.dtsi"
 #include "msm8937-pmi8950.dtsi"
 #include <dt-bindings/regulator/qcom,rpm-smd-regulator.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "cedric";
@@ -39,7 +40,37 @@ reserved-memory {
 	};
 };
 };
-	
+
+/ {
+	soc {
+
+		i2c@78b7000 {
+			status = "okay";
+        rmi4@20 {
+            reg = <0x20>;
+            compatible = "syna,rmi4-i2c";
+            interrupts-parent = <&msmgpio>;
+            interrupts-extended = <&msmgpio 65 0>;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            vdd-supply = <&vdda_touch>;
+            vio-supply = <&pm8937_l6>;
+            gpios = <&msmgpio 65 0>,
+			<&msmgpio 64 GPIO_ACTIVE_HIGH>;
+
+            pinctrl-names = "init", "suspend";
+            pinctrl-0 = <&ts_reset &touch_int_default>;
+            pinctrl-1 = <&ts_reset &touch_int_suspend>;
+            syna,reset-delay-ms = <200>;
+            syna,startup-delay-ms = <500>;
+            };
+
+	};
+};
+};
+
 &smd_rpm_regulators {
 	/*vdd_s1-supply = <&dummy_reg0>;
 	vdd_s2-supply = <&dummy_reg0>;
@@ -278,6 +309,15 @@ reserved-memory {
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
 	};
+	
+	vdda_touch: regulator-vdda_touch {
+		compatible = "regulator-fixed";
+		regulator-name = "vdda_touch";
+		gpio = <&msmgpio 64 0>;
+		startup-delay-us = <300>;
+		enable-active-high;
+		regulator-boot-on;
+	};
 };
 
 &msmgpio {
@@ -301,10 +341,63 @@ reserved-memory {
 
 		label = "GPIO Buttons";
 
-		volume-up {
-			label = "Volume Up";
-			gpios = <&msmgpio 91 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_UP>;
+    volume-up {
+    compatible = "qcom,pm8941-resin";
+      interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
+      bias-pull-up;
+      label = "Volume Up";
+      gpios = <&msmgpio 91 GPIO_ACTIVE_LOW>;
+      linux,code = <KEY_UP>;
+    };
+	};
+	
+	ctp_pwr_en_default: ctp_pwr_en_default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio64";
+		};
+		pinconf {
+			pins = "gpio64";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	ts_reset: ts_reset {
+		mux {
+			pins = "gpio64";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio64";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+
+	touch_int_default: touch_int_default {
+		mux {
+			pins = "gpio65";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio65";
+			bias-disable;
+		};
+	};
+
+	touch_int_suspend: touch_int_suspend {
+		mux {
+			pins = "gpio65";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio65";
+			drive-strength = <2>;
+			bias-pull-up;
 		};
 	};
 };
@@ -321,6 +414,9 @@ reserved-memory {
 	};
 };
 
+&otg {
+	status = "ok";
+};
 
 &sdhc_1 {
 	//vmmc-supply = <&pm8937_l8>;
