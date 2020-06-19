@@ -201,12 +201,16 @@ static int rmi_i2c_probe(struct i2c_client *client,
 	struct rmi_device_platform_data *client_pdata =
 					dev_get_platdata(&client->dev);
 	struct rmi_i2c_xport *rmi_i2c;
-	int error;
+	int error = 0;
+	
+	dev_err(&client->dev, "probe start!\n");
 
 	rmi_i2c = devm_kzalloc(&client->dev, sizeof(struct rmi_i2c_xport),
 				GFP_KERNEL);
-	if (!rmi_i2c)
-		return -ENOMEM;
+	if (!rmi_i2c) {
+		error = -ENOMEM;
+		goto out;
+	}
 
 	pdata = &rmi_i2c->xport.pdata;
 
@@ -230,18 +234,18 @@ static int rmi_i2c_probe(struct i2c_client *client,
 					 ARRAY_SIZE(rmi_i2c->supplies),
 					 rmi_i2c->supplies);
 	if (error < 0)
-		return error;
+		goto out;
 
 	error = regulator_bulk_enable(ARRAY_SIZE(rmi_i2c->supplies),
 				       rmi_i2c->supplies);
 	if (error < 0)
-		return error;
+		goto out;
 
 	error = devm_add_action_or_reset(&client->dev,
 					  rmi_i2c_regulator_bulk_disable,
 					  rmi_i2c);
 	if (error)
-		return error;
+		goto out;
 
 	of_property_read_u32(client->dev.of_node, "syna,startup-delay-ms",
 			     &rmi_i2c->startup_delay);
@@ -279,9 +283,13 @@ static int rmi_i2c_probe(struct i2c_client *client,
 					  rmi_i2c_unregister_transport,
 					  rmi_i2c);
 	if (error)
-		return error;
+		goto out;
 
+	dev_err(&client->dev, "probed sucessfuly!\n");
 	return 0;
+out:
+	dev_err(&client->dev, "Error occured: %d!\n", error);
+	return error;
 }
 
 #ifdef CONFIG_PM_SLEEP
