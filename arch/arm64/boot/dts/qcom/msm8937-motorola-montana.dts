@@ -59,6 +59,7 @@
 	vdd_l20_l21-supply = <&pm8937_s4>;
 	//vdd_l8_l11_l12_l17_l22-supply = <&dummy_reg0>;
 	//vdd_l9_l10_l13_l14_l15_l18-supply = <&dummy_reg0>;
+	//vdd_l10-supply = <&pm8937_l10>;
 
 	/* MSM modem */
 	s1 {
@@ -317,7 +318,7 @@
 
 		volume-up {
 			label = "Volume Up";
-			gpios = <&msmgpio 91 GPIO_ACTIVE_LOW>;
+			gpios = <&msmgpio 0x73 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_UP>;
 		};
 	};
@@ -429,6 +430,10 @@
 			//linux,code = <KEY_VOLUMEDOWN>;
 			linux,code = <KEY_DOWN>;
 		};
+
+		pwrkey {
+			linux,code = <KEY_ENTER>;
+		};z
 	};
 };
 
