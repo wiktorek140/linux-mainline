@@ -17,10 +17,10 @@ jobs:
       uses: uraimo/run-on-arch-action@v1.0.9
       with:
         # Architecture type: armv6,armv7,aarch64,s390x,ppc64le
-        #architecture: # optional, default is arm64v8
+        architecture: aarch64 # optional, default is arm64v8
         # OS distribution name: ubuntu16.04, ubuntu18.04, buster, stretch, jessie
-        #distribution: # optional, default is ubuntu:18.04
+        distribution: ubuntu18.04 # optional, default is ubuntu:18.04
         # Additional arguments to add to docker run
         #additionalArgs: # optional
         # Command/s to execute
-        run: make montana_defconfig && make
+        run: "make montana_defconfig && make"
