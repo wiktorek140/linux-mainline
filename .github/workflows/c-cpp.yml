@@ -23,4 +23,4 @@ jobs:
         # Additional arguments to add to docker run
         #additionalArgs: # optional
         # Command/s to execute
-        run: "make montana_defconfig && make"
+        run: "apt install make binutils build-dep libncurses-dev flex bison openssl libssl-dev libelf-dev libudev-dev libpci-dev libiberty-dev autoconf && make montana_defconfig && make"
