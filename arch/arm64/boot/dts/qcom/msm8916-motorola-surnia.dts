@@ -286,6 +286,26 @@
 		pinctrl-names = "default";
 		pnctrl-0 = <&battery_alert_default>;
 	};
+
+	fan54046: fan54046-charger@6b {
+		compatible = "fairchild,fan54046-charger";
+		reg = <0x6b>;
+
+		interrupt-parent = <&msmgpio>;
+		interrupts = <62 0x0>;
+		qcom,fan5404x-vadc = <&pm8916_vadc>;
+		qcom,fan5404x-adc_tm = <&pm8916_adc_tm>;
+		regulator-name = "fan54046_otg_vreg";
+
+		fairchild,bms-psy-name = "max170xx_battery";
+		fairchild,ext-temp-volt-mv = <4000>;
+		fairchild,ext-temp-soc = <65>;
+		fairchild,oreg-voltage-mv = <4350>;
+		fairchild,low-voltage-uv = <3200000>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&fan5404x_int_default>;
+	};
 };
 
 &spmi_bus {
@@ -297,6 +317,28 @@
 				bias-pull-up;
 				linux,code = <KEY_VOLUMEDOWN>;
 			};
+		};
+
+        pm8916_revid: qcom,revid@100 {
+			compatible = "qcom,qpnp-revid";
+			reg = <0x100 0x100>;
+		};
+
+        pm8916_adc_tm: vadc@3400 {
+			compatible = "qcom,qpnp-adc-tm";
+			reg = <0x3400 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts =	<0x0 0x34 0x0>,
+					<0x0 0x34 0x3>,
+					<0x0 0x34 0x4>;
+			interrupt-names =	"eoc-int-en-set",
+						"high-thr-en-set",
+						"low-thr-en-set";
+			qcom,adc-bit-resolution = <15>;
+			qcom,adc-vdd-reference = <1800>;
+			qcom,adc_tm-vadc = <&pm8916_vadc>;
+			qcom,pmic-revid = <&pm8916_revid>;
 		};
 	};
 
@@ -544,6 +586,18 @@
 				drive-strength = <8>;
 				bias-disable;
 			};
+		};
+	};
+
+	fan5404x_int_default: fan5404x_int_default {
+        pinmux {
+			function = "gpio";
+			pins = "gpio62";
+		};
+		pinconf {
+			pins = "gpio62";
+			drive-strength = <2>;	/* 2 MA */
+		    bias-pull-up;		/* PULL UP*/
 		};
 	};
 };
