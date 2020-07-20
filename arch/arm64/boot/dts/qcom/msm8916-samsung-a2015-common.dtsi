@@ -2,9 +2,11 @@
 
 #include "msm8916.dtsi"
 #include "pm8916.dtsi"
+#include "arm/qcom-msm8916-no-psci.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/sound/apq8016-lpass.h>
 
 / {
 	aliases {
@@ -19,6 +21,25 @@
 		/* Additional memory used by Samsung firmware modifications */
 		tz-apps@85500000 {
 			reg = <0x0 0x85500000 0x0 0xb00000>;
+			no-map;
+		};
+
+		/delete-node/ wcnss@89300000;
+		/delete-node/ venus@89900000;
+
+		mpss_mem: mpss@86800000 {
+			status = "disabled";
+			reg = <0x0 0x86800000 0x0 0x5400000>;
+			no-map;
+		};
+
+		wcnss_mem: wcnss@8bc00000 {
+			reg = <0x0 0x8bc00000 0x0 0x600000>;
+			no-map;
+		};
+
+		venus_mem: venus@8c200000 {
+			reg = <0x0 0x8c200000 0x0 0x600000>;
 			no-map;
 		};
 	};
@@ -72,8 +93,81 @@
 			};
 		};
 
+		lpass@7708000 {
+			status = "okay";
+
+			dai@3 {
+				reg = <MI2S_QUATERNARY>;
+				qcom,playback-sd-lines = <1>;
+			};
+		};
+
+		sound {
+			compatible = "qcom,apq8016-sbc-sndcard";
+			reg = <0x07702000 0x4>, <0x07702004 0x4>;
+			reg-names = "mic-iomux", "spkr-iomux";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&cdc_pdm_lines_act &ext_sec_tlmm_lines_act>;
+			pinctrl-1 = <&cdc_pdm_lines_sus &ext_sec_tlmm_lines_sus>;
+
+			qcom,model = "samsung-a2015";
+			qcom,audio-routing =
+				"AMIC1", "MIC BIAS External1",
+				"AMIC2", "MIC BIAS Internal2",
+				"AMIC3", "MIC BIAS External1";
+
+			internal-codec-playback-dai-link@0 {
+				link-name = "WCD";
+				cpu {
+					sound-dai = <&lpass MI2S_PRIMARY>;
+				};
+				codec {
+					sound-dai = <&lpass_codec 0>, <&wcd_codec 0>;
+				};
+			};
+
+			internal-codec-capture-dai-link@0 {
+				link-name = "WCD-Capture";
+				cpu {
+					sound-dai = <&lpass MI2S_TERTIARY>;
+				};
+				codec {
+					sound-dai = <&lpass_codec 1>, <&wcd_codec 1>;
+				};
+			};
+
+			external-dai-link@0 {
+				link-name = "Speaker";
+				cpu {
+					sound-dai = <&lpass MI2S_QUATERNARY>;
+				};
+				codec {
+					sound-dai = <&speaker_codec>;
+				};
+			};
+		};
+
 		wcnss@a21b000 {
 			status = "okay";
+		};
+
+		mdss@1a00000 {
+			dsi@1a98000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				vdda-supply = <&pm8916_l2>;
+				vddio-supply = <&pm8916_l6>;
+
+				pinctrl-names = "default", "sleep";
+				pinctrl-0 = <&mdss_default>;
+				pinctrl-1 = <&mdss_sleep>;
+			};
+
+			dsi-phy@1a98300 {
+				vddio-supply = <&pm8916_l6>;
+			};
 		};
 
 		/*
@@ -138,6 +232,19 @@
 		};
 	};
 
+	reg_vdd_tsp: regulator-vdd-tsp {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_tsp";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&msmgpio 73 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tsp_en_default>;
+	};
+
 	i2c-muic {
 		compatible = "i2c-gpio";
 		sda-gpios = <&msmgpio 105 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
@@ -157,9 +264,142 @@
 			pinctrl-0 = <&muic_int_default>;
 		};
 	};
+
+	i2c-tkey {
+		compatible = "i2c-gpio";
+		sda-gpios = <&msmgpio 16 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&msmgpio 17 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tkey_i2c_default>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		touchkey: touchkey@20 {
+			/*
+			 * FIXME: This touchkey is built using an Abov MCU
+			 * but we don't have an extra compatible for it yet.
+			 */
+			compatible = "coreriver,tc360-touchkey";
+			reg = <0x20>;
+
+			interrupt-parent = <&msmgpio>;
+			interrupts = <98 IRQ_TYPE_EDGE_FALLING>;
+
+			linux,keycodes = <KEY_APPSELECT KEY_BACK>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&tkey_default>;
+		};
+	};
+
+	i2c-nfc {
+		compatible = "i2c-gpio";
+		sda-gpios = <&msmgpio 0 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&msmgpio 1 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		nfc@27 {
+			compatible = "samsung,s3fwrn5-i2c";
+
+			reg = <0x27>;
+			interrupt-parent = <&msmgpio>;
+			interrupts = <21 IRQ_TYPE_EDGE_RISING>;
+
+			s3fwrn5,en-gpios = <&msmgpio 20 GPIO_ACTIVE_LOW>;
+			s3fwrn5,fw-gpios = <&msmgpio 49 GPIO_ACTIVE_LOW>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&nfc_default &nfc_int_default &nfc_fw_default>;
+		};
+	};
+};
+
+&blsp_i2c1 {
+	status = "okay";
+
+	speaker_codec: audio-codec@34 {
+		compatible = "nxp,tfa9895";
+		reg = <0x34>;
+		#sound-dai-cells = <0>;
+	};
+};
+
+&blsp_i2c2 {
+	status = "okay";
+
+	accel: accelerometer@10 {
+		compatible = "bosch,bmc150_accel";
+		reg = <0x10>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <115 IRQ_TYPE_EDGE_RISING>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&accel_int_default>;
+	};
+
+	magn: magnetometer@12 {
+		compatible = "bosch,bmc150_magn";
+		reg = <0x12>;
+	};
+};
+
+&blsp_i2c4 {
+	status = "okay";
+
+	battery@35 {
+		compatible = "richtek,rt5033-battery";
+		reg = <0x35>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <121 IRQ_TYPE_EDGE_BOTH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&fg_alert_default>;
+	};
+};
+
+&blsp_i2c6 {
+	status = "okay";
+
+	pmic@34 {
+		compatible = "richtek,rt5033";
+		reg = <0x34>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <62 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pmic_int_default>;
+	};
 };
 
 &msmgpio {
+	accel_int_default: accel_int_default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio115";
+		};
+		pinconf {
+			pins = "gpio115";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	fg_alert_default: fg_alert_default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio121";
+		};
+		pinconf {
+			pins = "gpio121";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
 	gpio_keys_default: gpio_keys_default {
 		pinmux {
 			function = "gpio";
@@ -184,6 +424,18 @@
 		};
 	};
 
+	jack_default: jack_default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio110";
+		};
+		pinconf {
+			pins = "gpio110";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
 	muic_int_default: muic_int_default {
 		pinmux {
 			function = "gpio";
@@ -191,6 +443,116 @@
 		};
 		pinconf {
 			pins = "gpio12";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	nfc_default: nfc_default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio0", "gpio1", "gpio20";
+		};
+		pinconf {
+			pins = "gpio0", "gpio1", "gpio20";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	nfc_int_default: nfc_int_default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio21";
+		};
+		pinconf {
+			pins = "gpio21";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	nfc_fw_default: nfc_fw_default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio49";
+		};
+		pinconf {
+			pins = "gpio49";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	pmic_int_default: pmic_int_default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio62";
+		};
+		pinconf {
+			pins = "gpio62";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	pmx_mdss {
+		mdss_default: mdss_default {
+			pinmux {
+				function = "gpio";
+				pins = "gpio25";
+			};
+			pinconf {
+				pins = "gpio25";
+				drive-strength = <8>;
+				bias-disable;
+			};
+		};
+
+		mdss_sleep: mdss_sleep {
+			pinmux {
+				function = "gpio";
+				pins = "gpio25";
+			};
+			pinconf {
+				pins = "gpio25";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+	};
+
+	tkey_default: tkey_default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio98";
+		};
+		pinconf {
+			pins = "gpio98";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	tkey_i2c_default: tkey_i2c_default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio16", "gpio17";
+		};
+		pinconf {
+			pins = "gpio16", "gpio17";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	tsp_en_default: tsp_en_default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio73";
+		};
+		pinconf {
+			pins = "gpio73";
 			drive-strength = <2>;
 			bias-disable;
 		};
@@ -319,6 +681,18 @@
 				bias-pull-up;
 				linux,code = <KEY_VOLUMEDOWN>;
 			};
+		};
+	};
+
+	pm8916@1 {
+		codec@f000 {
+			jack-gpios = <&msmgpio 110 GPIO_ACTIVE_LOW>;
+			qcom,micbias-lvl = <2800>;
+			qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
+			qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&jack_default>;
 		};
 	};
 };

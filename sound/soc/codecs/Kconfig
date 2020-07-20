@@ -50,6 +50,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_AK5558
 	imply SND_SOC_ALC5623
 	imply SND_SOC_ALC5632
+	imply SND_SOC_AW8738
 	imply SND_SOC_BT_SCO
 	imply SND_SOC_BD28623
 	imply SND_SOC_CQ0093VC
@@ -197,6 +198,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS6424
 	imply SND_SOC_TDA7419
 	imply SND_SOC_TFA9879
+	imply SND_SOC_TFA9895
 	imply SND_SOC_TLV320ADCX140
 	imply SND_SOC_TLV320AIC23_I2C
 	imply SND_SOC_TLV320AIC23_SPI
@@ -516,6 +518,10 @@ config SND_SOC_ALC5623
 config SND_SOC_ALC5632
 	tristate
 	depends on I2C
+
+config SND_SOC_AW8738
+	tristate "Awinic AW8738 CODEC"
+	depends on GPIOLIB
 
 config SND_SOC_BD28623
 	tristate "ROHM BD28623 CODEC"
@@ -1295,6 +1301,11 @@ config SND_SOC_TDA7419
 config SND_SOC_TFA9879
 	tristate "NXP Semiconductors TFA9879 amplifier"
 	depends on I2C
+
+config SND_SOC_TFA9895
+	tristate "NXP Semiconductors TFA9895 amplifier"
+	depends on I2C
+	select REGMAP_I2C
 
 config SND_SOC_TLV320AIC23
 	tristate

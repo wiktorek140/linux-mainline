@@ -29,6 +29,17 @@ config DRM_PANEL_BOE_HIMAX8279D
 	  24 bit RGB per pixel. It provides a MIPI DSI interface to
 	  the host and has a built-in LED backlight.
 
+config DRM_PANEL_BOE_450
+	tristate "Boe 450 panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Boe 450
+	  TFT-LCD(?) modules. The panel has a 560x940 resolution and uses
+	  24 bit RGB per pixel. It provides a MIPI DSI interface to
+	  the host and has a built-in LED backlight.
+
 config DRM_PANEL_BOE_TV101WUM_NL6
 	tristate "BOE TV101WUM and AUO KD101N80 45NA 1200x1920 panel"
 	depends on OF
@@ -37,6 +48,11 @@ config DRM_PANEL_BOE_TV101WUM_NL6
 	help
 	  Say Y here if you want to support for BOE TV101WUM and AUO KD101N80
 	  45NA WUXGA PANEL DSI Video Mode panel
+
+config DRM_PANEL_BOOYI_OTM1287
+	tristate "Booyi OTM1287 panel"
+	depends on GPIOLIB && OF && REGULATOR
+	depends on DRM_MIPI_DSI
 
 config DRM_PANEL_LVDS
 	tristate "Generic LVDS panel driver"
@@ -293,11 +309,22 @@ config DRM_PANEL_RONBO_RB070D30
 	  Say Y here if you want to enable support for Ronbo Electronics
 	  RB070D30 1024x600 DSI panel.
 
+config DRM_PANEL_SAMSUNG_EA8061V_AMS497EE01
+	tristate "Samsung EA8061V AMS497EE01 DSI video mode panel"
+	depends on GPIOLIB && OF && REGULATOR
+	depends on DRM_MIPI_DSI
+
 config DRM_PANEL_SAMSUNG_S6D16D0
 	tristate "Samsung S6D16D0 DSI video mode panel"
 	depends on OF
 	depends on DRM_MIPI_DSI
 	select VIDEOMODE_HELPERS
+
+config DRM_PANEL_SAMSUNG_S6D7AA0_LTL101AT01
+	tristate "Samsung S6D7AA0 LTL101AT01 DSI video mode panel"
+	depends on GPIOLIB && OF && REGULATOR
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
 
 config DRM_PANEL_SAMSUNG_S6E3HA2
 	tristate "Samsung S6E3HA2 DSI video mode panel"
@@ -322,6 +349,11 @@ config DRM_PANEL_SAMSUNG_S6E63M0
 	  Say Y here if you want to enable support for Samsung S6E63M0
 	  AMOLED LCD panel.
 
+config DRM_PANEL_SAMSUNG_S6E88A0_AMS427AP24
+	tristate "Samsung S6E88A0 AMS427AP24 DSI video mode panel"
+	depends on GPIOLIB && OF && REGULATOR
+	depends on DRM_MIPI_DSI
+
 config DRM_PANEL_SAMSUNG_S6E88A0_AMS452EF01
 	tristate "Samsung AMS452EF01 panel with S6E88A0 DSI video mode controller"
 	depends on OF
@@ -333,6 +365,11 @@ config DRM_PANEL_SAMSUNG_S6E8AA0
 	depends on OF
 	select DRM_MIPI_DSI
 	select VIDEOMODE_HELPERS
+
+config DRM_PANEL_SAMSUNG_TC358764_LTL101AL06
+	tristate "Samsung TC358764 LTL101AL06 DSI/LDVS video mode panel"
+	depends on GPIOLIB && OF && REGULATOR
+	depends on DRM_MIPI_DSI
 
 config DRM_PANEL_SEIKO_43WVF1G
 	tristate "Seiko 43WVF1G panel"
@@ -410,6 +447,12 @@ config DRM_PANEL_SONY_ACX565AKM
 	  Say Y here if you want to enable support for the Sony ACX565AKM
 	  800x600 3.5" panel (found on the Nokia N900).
 
+config DRM_PANEL_TIANMA_499
+	tristate "Tianma 499 panel"
+	depends on GPIOLIB && OF && REGULATOR
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+
 config DRM_PANEL_TPO_TD028TTEC1
 	tristate "Toppoly (TPO) TD028TTEC1 panel driver"
 	depends on OF && SPI
@@ -467,4 +510,9 @@ config DRM_PANEL_INX_521
 	depends on BACKLIGHT_CLASS_DEVICE
 	help
 	  Say Y here if you want to enable support for INX 521.
+
+config DRM_PANEL_YUSHUN_NT35520
+	tristate "Yushun panel with Novatek NT35520 controller"
+	depends on GPIOLIB && OF && REGULATOR
+	depends on DRM_MIPI_DSI
 endmenu
