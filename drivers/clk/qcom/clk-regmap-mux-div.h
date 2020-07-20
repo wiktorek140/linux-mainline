@@ -17,9 +17,9 @@
  * @hid_shift:	lowest bit of hid value field
  * @src_width:	number of bits in source select
  * @src_shift:	lowest bit of source select field
- * @div:	the divider raw configuration value
- * @src:	the mux index which will be used if the clock is enabled
  * @parent_map: map from parent_names index to src_sel field
+ * @keep_rate_map: map from parent index describing clock whichs shouldn't
+ *		have rate changed when CLK_SET_RATE_PARENT flags is present.
  * @clkr:	handle between common and hardware-specific interfaces
  * @pclk:	the input PLL clock
  * @clk_nb:	clock notifier for rate changes of the input PLL
@@ -30,9 +30,8 @@ struct clk_regmap_mux_div {
 	u32				hid_shift;
 	u32				src_width;
 	u32				src_shift;
-	u32				div;
-	u32				src;
 	const u32			*parent_map;
+	const u32			*keep_rate_map;
 	struct clk_regmap		clkr;
 	struct clk			*pclk;
 	struct notifier_block		clk_nb;

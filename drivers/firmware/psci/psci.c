@@ -451,18 +451,18 @@ static void __init psci_0_2_set_functions(void)
 	psci_ops.migrate_info_type = psci_migrate_info_type;
 
 	ret = psci_features(PSCI_0_2_FN_SYSTEM_RESET);
-	if (ret != PSCI_RET_NOT_SUPPORTED) {
+
+	if (ret != PSCI_RET_NOT_SUPPORTED)
 		arm_pm_restart = psci_sys_reset;
-	} else {
+	else
 		pr_info("SYSTEM_RESET not supported.\n");
-	}
 
 	ret = psci_features(PSCI_0_2_FN_SYSTEM_OFF);
-	if (ret != PSCI_RET_NOT_SUPPORTED) {
+
+	if (ret != PSCI_RET_NOT_SUPPORTED)
 		pm_power_off = psci_sys_poweroff;
-	} else { 
+	else
 		pr_info("SYSTEM_OFF not supported.\n");
-	}
 }
 
 /*

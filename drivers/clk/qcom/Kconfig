@@ -37,6 +37,15 @@ config QCOM_CLK_APCS_MSM8916
 	  Say Y if you want to support CPU frequency scaling on devices
 	  such as msm8916.
 
+config QCOM_CLK_APCS_MSM8953
+	tristate "MSM8953 APCS Clock Controller"
+	help
+	  Support for the APCS Clock Controller on msm8953 devices. The
+	  APCS is managing high frequency PLL and mux and divider clocks
+	  which feeds the CPUs.
+	  Say Y if you want to support CPU frequency scaling on devices
+	  such as msm8953.
+
 config QCOM_CLK_RPM
 	tristate "RPM based Clock Controller"
 	depends on MFD_QCOM_RPM
@@ -148,6 +157,14 @@ config MSM_GCC_8917
 	depends on COMMON_CLK_QCOM
 	help
 	  Support for the global clock controller on msm8937 devices.
+	  Say Y if you want to use devices such as UART, SPI i2c, USB,
+	  SD/eMMC, display, graphics, camera etc.
+
+config MSM_GCC_8953
+	tristate "MSM8953 Global Clock Controller"
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on msm8916 devices.
 	  Say Y if you want to use devices such as UART, SPI i2c, USB,
 	  SD/eMMC, display, graphics, camera etc.
 

@@ -115,6 +115,26 @@ struct rpmpd_desc {
 
 static DEFINE_MUTEX(rpmpd_lock);
 
+/* msm8953 RPM Power Domains */
+DEFINE_RPMPD_PAIR(msm8953, vddcx, vddcx_ao, SMPA, LEVEL, 2);
+DEFINE_RPMPD_PAIR(msm8953, vddmx, vddmx_ao, SMPA, LEVEL, 7);
+
+DEFINE_RPMPD_VFL(msm8953, vddcx_vfl, SMPA, 2);
+
+static struct rpmpd *msm8953_rpmpds[] = {
+	[MSM8953_VDDCX] =	&msm8953_vddcx,
+	[MSM8953_VDDCX_AO] =	&msm8953_vddcx_ao,
+	[MSM8953_VDDCX_VFL] =	&msm8953_vddcx_vfl,
+	[MSM8953_VDDMX] =	&msm8953_vddmx,
+	[MSM8953_VDDMX_AO] =	&msm8953_vddmx_ao,
+};
+
+static const struct rpmpd_desc msm8953_desc = {
+	.rpmpds = msm8953_rpmpds,
+	.num_pds = ARRAY_SIZE(msm8953_rpmpds),
+	.max_state = RPM_SMD_LEVEL_TURBO,
+};
+
 /* msm8976 RPM Power Domains */
 DEFINE_RPMPD_PAIR(msm8976, vddcx, vddcx_ao, SMPA, LEVEL, 2);
 DEFINE_RPMPD_PAIR(msm8976, vddmx, vddmx_ao, SMPA, LEVEL, 6);
@@ -220,6 +240,7 @@ static const struct rpmpd_desc qcs404_desc = {
 };
 
 static const struct of_device_id rpmpd_match_table[] = {
+	{ .compatible = "qcom,msm8953-rpmpd", .data = &msm8953_desc },
 	{ .compatible = "qcom,msm8976-rpmpd", .data = &msm8976_desc },
 	{ .compatible = "qcom,msm8996-rpmpd", .data = &msm8996_desc },
 	{ .compatible = "qcom,msm8998-rpmpd", .data = &msm8998_desc },
@@ -401,6 +422,10 @@ static int rpmpd_probe(struct platform_device *pdev)
 		rpmpds[i]->pd.set_performance_state = rpmpd_set_performance;
 		rpmpds[i]->pd.opp_to_performance_state = rpmpd_get_performance;
 		pm_genpd_init(&rpmpds[i]->pd, NULL, true);
+		rpmpds[i]->pd.domain.ops.resume_early =	rpmpds[i]->pd.domain.ops.resume_noirq;
+		rpmpds[i]->pd.domain.ops.suspend_late =	rpmpds[i]->pd.domain.ops.suspend_noirq;;
+		rpmpds[i]->pd.domain.ops.resume_noirq = NULL;
+		rpmpds[i]->pd.domain.ops.suspend_noirq = NULL;
 
 		data->domains[i] = &rpmpds[i]->pd;
 	}

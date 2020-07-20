@@ -1284,6 +1284,8 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	if (ret < 0)
 		return ret;
 
+	smmu_domain->fwspec = fwspec;
+
 	/* Ensure that the domain is finalised */
 	ret = arm_smmu_init_domain_context(domain, smmu, fwspec);
 	if (ret < 0)
@@ -1715,6 +1717,14 @@ static void arm_smmu_get_resv_regions(struct device *dev,
 	iommu_dma_get_resv_regions(dev, head);
 }
 
+static bool arm_smmu_is_attach_deferred(struct iommu_domain *domain,
+					struct device *dev)
+{
+	return dev->of_node &&
+		of_property_read_bool(dev->of_node, "iommu-defer-attach") &&
+		!dev->archdata.iommu;
+}
+
 static struct iommu_ops arm_smmu_ops = {
 	.capable		= arm_smmu_capable,
 	.domain_alloc		= arm_smmu_domain_alloc,
@@ -1727,6 +1737,7 @@ static struct iommu_ops arm_smmu_ops = {
 	.iova_to_phys		= arm_smmu_iova_to_phys,
 	.add_device		= arm_smmu_add_device,
 	.remove_device		= arm_smmu_remove_device,
+	.is_attach_deferred	= arm_smmu_is_attach_deferred,
 	.device_group		= arm_smmu_device_group,
 	.domain_get_attr	= arm_smmu_domain_get_attr,
 	.domain_set_attr	= arm_smmu_domain_set_attr,
@@ -2409,6 +2420,10 @@ static int __maybe_unused arm_smmu_runtime_resume(struct device *dev)
 	ret = clk_bulk_enable(smmu->num_clks, smmu->clks);
 	if (ret)
 		return ret;
+
+	if (smmu->impl && unlikely(smmu->impl->resume) &&
+	    smmu->impl->resume(smmu))
+		return 0;
 
 	arm_smmu_device_reset(smmu);
 

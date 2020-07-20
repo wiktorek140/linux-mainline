@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0-only
-// Copyright (c) 2020, The Linux Foundation. All rights reserved.
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2019, The Linux Foundation. All rights reserved.
 
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -24,13 +24,10 @@
 #define LAB_ENABLE_CTL_MASK		BIT(7)
 #define IBB_ENABLE_CTL_MASK		(BIT(7) | BIT(6))
 
-#define LABIBB_OFF_ON_DELAY		1000
-#define LAB_ENABLE_TIME			(LABIBB_OFF_ON_DELAY * 2)
-#define IBB_ENABLE_TIME			(LABIBB_OFF_ON_DELAY * 10)
-#define LABIBB_POLL_ENABLED_TIME	1000
-
+#define POWER_DELAY			8000
 #define POLLING_SCP_DONE_INTERVAL_US	5000
 #define POLLING_SCP_TIMEOUT		16000
+
 
 struct labibb_regulator {
 	struct regulator_desc		desc;
@@ -38,54 +35,126 @@ struct labibb_regulator {
 	struct regmap			*regmap;
 	struct regulator_dev		*rdev;
 	u16				base;
-	bool				enabled;
+	int				sc_irq;
+	int				vreg_enabled;
 	u8				type;
+};
+
+struct qcom_labibb {
+	struct device			*dev;
+	struct regmap			*regmap;
+	struct labibb_regulator		lab;
+	struct labibb_regulator		ibb;
 };
 
 struct labibb_regulator_data {
 	u16				base;
 	const char			*name;
+	const char			*irq_name;
 	u8				type;
-	unsigned int			enable_time;
-	unsigned int			enable_mask;
 };
 
 static int qcom_labibb_regulator_is_enabled(struct regulator_dev *rdev)
 {
 	int ret;
-	unsigned int val;
+	u8 val;
 	struct labibb_regulator *reg = rdev_get_drvdata(rdev);
 
-	ret = regmap_read(reg->regmap, reg->base + REG_LABIBB_STATUS1, &val);
+	ret = regmap_bulk_read(reg->regmap, reg->base +
+			       REG_LABIBB_STATUS1, &val, 1);
 	if (ret < 0) {
 		dev_err(reg->dev, "Read register failed ret = %d\n", ret);
 		return ret;
 	}
-	return !!(val & LABIBB_STATUS1_VREG_OK_BIT);
+
+	if (val & LABIBB_STATUS1_VREG_OK_BIT)
+		return 1;
+	else
+		return 0;
 }
 
-static int qcom_labibb_regulator_enable(struct regulator_dev *rdev)
+static int _check_enabled_with_retries(struct regulator_dev *rdev,
+			int retries, int enabled)
 {
 	int ret;
 	struct labibb_regulator *reg = rdev_get_drvdata(rdev);
 
-	ret = regulator_enable_regmap(rdev);
-	if (ret >= 0)
-		reg->enabled = true;
+	while (retries--) {
+		/* Wait for a small period before checking REG_LABIBB_STATUS1 */
+		usleep_range(POWER_DELAY, POWER_DELAY + 200);
 
-	return ret;
+		ret = qcom_labibb_regulator_is_enabled(rdev);
+
+		if (ret < 0) {
+			dev_err(reg->dev, "Can't read %s regulator status\n",
+				reg->desc.name);
+			return ret;
+		}
+
+		if (ret == enabled)
+			return ret;
+
+	}
+
+	return -EINVAL;
+}
+
+static int qcom_labibb_regulator_enable(struct regulator_dev *rdev)
+{
+	int ret, retries = 10;
+	struct labibb_regulator *reg = rdev_get_drvdata(rdev);
+
+	ret = regulator_enable_regmap(rdev);
+
+	if (ret < 0) {
+		dev_err(reg->dev, "Write failed: enable %s regulator\n",
+			reg->desc.name);
+		return ret;
+	}
+
+	ret = _check_enabled_with_retries(rdev, retries, 1);
+	if (ret < 0) {
+		dev_err(reg->dev, "retries exhausted: enable %s regulator\n",
+			reg->desc.name);
+		return ret;
+	}
+
+	if (ret) {
+		reg->vreg_enabled = 1;
+		return 0;
+	}
+
+	dev_err(reg->dev, "Can't enable %s\n", reg->desc.name);
+	return -EINVAL;
 }
 
 static int qcom_labibb_regulator_disable(struct regulator_dev *rdev)
 {
-	int ret = 0;
+	int ret, retries = 2;
 	struct labibb_regulator *reg = rdev_get_drvdata(rdev);
 
 	ret = regulator_disable_regmap(rdev);
-	if (ret >= 0)
-		reg->enabled = false;
 
-	return ret;
+	if (ret < 0) {
+		dev_err(reg->dev, "Write failed: disable %s regulator\n",
+			reg->desc.name);
+		return ret;
+	}
+
+	ret = _check_enabled_with_retries(rdev, retries, 0);
+	if (ret < 0) {
+		dev_err(reg->dev, "retries exhausted: disable %s regulator\n",
+			reg->desc.name);
+		return ret;
+	}
+
+	if (!ret) {
+		reg->vreg_enabled = 0;
+		return 0;
+	}
+
+	dev_err(reg->dev, "Can't disable %s\n", reg->desc.name);
+	return -EINVAL;
 }
 
 static struct regulator_ops qcom_labibb_ops = {
@@ -94,26 +163,32 @@ static struct regulator_ops qcom_labibb_ops = {
 	.is_enabled		= qcom_labibb_regulator_is_enabled,
 };
 
+
 static irqreturn_t labibb_sc_err_handler(int irq, void *_reg)
 {
-	int ret;
+	int ret, count;
 	u16 reg;
+	u8 sc_err_mask;
 	unsigned int val;
-	struct labibb_regulator *labibb_reg = _reg;
-	bool in_sc_err, scp_done = false;
+	struct labibb_regulator *labibb_reg = (struct labibb_regulator *)_reg;
+	bool in_sc_err, reg_en, scp_done = false;
 
-	ret = regmap_read(labibb_reg->regmap,
-			  labibb_reg->base + REG_LABIBB_STATUS1, &val);
+	if (irq == labibb_reg->sc_irq)
+		reg = labibb_reg->base + REG_LABIBB_STATUS1;
+	else
+		return IRQ_HANDLED;
+
+	sc_err_mask = LABIBB_STATUS1_SC_DETECT_BIT;
+
+	ret = regmap_bulk_read(labibb_reg->regmap, reg, &val, 1);
 	if (ret < 0) {
-		dev_err(labibb_reg->dev, "sc_err_irq: Read failed, ret=%d\n",
-			ret);
+		dev_err(labibb_reg->dev, "Read failed, ret=%d\n", ret);
 		return IRQ_HANDLED;
 	}
-
 	dev_dbg(labibb_reg->dev, "%s SC error triggered! STATUS1 = %d\n",
 		labibb_reg->desc.name, val);
 
-	in_sc_err = !!(val & LABIBB_STATUS1_SC_DETECT_BIT);
+	in_sc_err = !!(val & sc_err_mask);
 
 	/*
 	 * The SC(short circuit) fault would trigger PBS(Portable Batch
@@ -134,7 +209,7 @@ static irqreturn_t labibb_sc_err_handler(int irq, void *_reg)
 					POLLING_SCP_DONE_INTERVAL_US,
 					POLLING_SCP_TIMEOUT);
 
-		if (!ret && labibb_reg->enabled) {
+		if (!ret && labibb_reg->vreg_enabled) {
 			dev_dbg(labibb_reg->dev,
 				"%s has been disabled by SCP\n",
 				labibb_reg->desc.name);
@@ -152,16 +227,26 @@ static irqreturn_t labibb_sc_err_handler(int irq, void *_reg)
 	return IRQ_HANDLED;
 }
 
-static struct regulator_dev *register_labibb_regulator(struct labibb_regulator *reg,
+static int register_labibb_regulator(struct qcom_labibb *labibb,
 				const struct labibb_regulator_data *reg_data,
 				struct device_node *of_node)
 {
+	int ret;
+	struct labibb_regulator *reg;
 	struct regulator_config cfg = {};
-	int ret, sc_irq;
 
+	if (reg_data->type == QCOM_LAB_TYPE) {
+		reg = &labibb->lab;
+		reg->desc.enable_mask = LAB_ENABLE_CTL_MASK;
+	} else {
+		reg = &labibb->ibb;
+		reg->desc.enable_mask = IBB_ENABLE_CTL_MASK;
+	}
+
+	reg->dev = labibb->dev;
 	reg->base = reg_data->base;
 	reg->type = reg_data->type;
-	reg->desc.enable_mask = reg_data->enable_mask;
+	reg->regmap = labibb->regmap;
 	reg->desc.enable_reg = reg->base + REG_LABIBB_ENABLE_CTL;
 	reg->desc.enable_val = LABIBB_CONTROL_ENABLE;
 	reg->desc.of_match = reg_data->name;
@@ -170,39 +255,48 @@ static struct regulator_dev *register_labibb_regulator(struct labibb_regulator *
 	reg->desc.type = REGULATOR_VOLTAGE;
 	reg->desc.ops = &qcom_labibb_ops;
 
-	reg->desc.enable_time = reg_data->enable_time;
-	reg->desc.poll_enabled_time = LABIBB_POLL_ENABLED_TIME;
-	reg->desc.off_on_delay = LABIBB_OFF_ON_DELAY;
+	reg->sc_irq = -EINVAL;
+	ret = of_irq_get_byname(of_node, reg_data->irq_name);
+	if (ret < 0)
+		dev_dbg(labibb->dev,
+			"Unable to get %s, ret = %d\n",
+			reg_data->irq_name, ret);
+	else
+		reg->sc_irq = ret;
 
-	sc_irq = of_irq_get_byname(of_node, "sc-err");
-	if (sc_irq < 0) {
-		dev_err(reg->dev, "Unable to get sc-err, ret = %d\n",
-			sc_irq);
-		return ERR_PTR(sc_irq);
-	} else {
-		ret = devm_request_threaded_irq(reg->dev,
-						sc_irq,
+	if (reg->sc_irq > 0) {
+		ret = devm_request_threaded_irq(labibb->dev,
+						reg->sc_irq,
 						NULL, labibb_sc_err_handler,
-						IRQF_ONESHOT,
-						"sc-err", reg);
+						IRQF_ONESHOT |
+						IRQF_TRIGGER_RISING,
+						reg_data->irq_name, labibb);
 		if (ret) {
-			dev_err(reg->dev, "Failed to register sc-err irq ret=%d\n",
-				ret);
-			return ERR_PTR(ret);
+			dev_err(labibb->dev, "Failed to register '%s' irq ret=%d\n",
+				reg_data->irq_name, ret);
+			return ret;
 		}
 	}
 
-	cfg.dev = reg->dev;
+	cfg.dev = labibb->dev;
 	cfg.driver_data = reg;
-	cfg.regmap = reg->regmap;
+	cfg.regmap = labibb->regmap;
 	cfg.of_node = of_node;
 
-	return devm_regulator_register(reg->dev, &reg->desc, &cfg);
+	reg->rdev = devm_regulator_register(labibb->dev, &reg->desc,
+							&cfg);
+	if (IS_ERR(reg->rdev)) {
+		ret = PTR_ERR(reg->rdev);
+		dev_err(labibb->dev,
+			"unable to register %s regulator\n", reg_data->name);
+		return ret;
+	}
+	return 0;
 }
 
 static const struct labibb_regulator_data pmi8998_labibb_data[] = {
-	{0xde00, "lab", QCOM_LAB_TYPE, LAB_ENABLE_TIME, LAB_ENABLE_CTL_MASK},
-	{0xdc00, "ibb", QCOM_IBB_TYPE, IBB_ENABLE_TIME, IBB_ENABLE_CTL_MASK},
+	{0xde00, "lab", "lab-sc-err", QCOM_LAB_TYPE},
+	{0xdc00, "ibb", "ibb-sc-err", QCOM_IBB_TYPE},
 	{ },
 };
 
@@ -214,75 +308,76 @@ MODULE_DEVICE_TABLE(of, qcom_labibb_match);
 
 static int qcom_labibb_regulator_probe(struct platform_device *pdev)
 {
-	struct labibb_regulator *labibb_reg;
-	struct device *dev = &pdev->dev;
+	struct qcom_labibb *labibb;
 	struct device_node *child;
 	const struct of_device_id *match;
-	const struct labibb_regulator_data *reg_data;
-	struct regmap *reg_regmap;
-	unsigned int type;
+	const struct labibb_regulator_data *reg;
+	u8 type;
 	int ret;
 
-	reg_regmap = dev_get_regmap(pdev->dev.parent, NULL);
-	if (!reg_regmap) {
+	labibb = devm_kzalloc(&pdev->dev, sizeof(*labibb), GFP_KERNEL);
+	if (!labibb)
+		return -ENOMEM;
+
+	labibb->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	if (!labibb->regmap) {
 		dev_err(&pdev->dev, "Couldn't get parent's regmap\n");
 		return -ENODEV;
 	}
+
+	labibb->dev = &pdev->dev;
 
 	match = of_match_device(qcom_labibb_match, &pdev->dev);
 	if (!match)
 		return -ENODEV;
 
-	for (reg_data = match->data; reg_data->name; reg_data++) {
-		child = of_get_child_by_name(pdev->dev.of_node, reg_data->name);
+	for (reg = match->data; reg->name; reg++) {
+		child = of_get_child_by_name(pdev->dev.of_node, reg->name);
 
-		if (WARN_ON(child == NULL))
-			return -EINVAL;
-
-		/* Validate if the type of regulator is indeed
+		/* TODO: This validates if the type of regulator is indeed
 		 * what's mentioned in DT.
+		 * I'm not sure if this is needed, but we'll keep it for now.
 		 */
-		ret = regmap_read(reg_regmap, reg_data->base + REG_PERPH_TYPE,
-				  &type);
+		ret = regmap_bulk_read(labibb->regmap,
+					reg->base + REG_PERPH_TYPE,
+					&type, 1);
 		if (ret < 0) {
-			dev_err(dev,
+			dev_err(labibb->dev,
 				"Peripheral type read failed ret=%d\n",
 				ret);
 			return -EINVAL;
 		}
 
-		if (WARN_ON((type != QCOM_LAB_TYPE) && (type != QCOM_IBB_TYPE)) ||
-		    WARN_ON(type != reg_data->type))
+		if ((type != QCOM_LAB_TYPE) && (type != QCOM_IBB_TYPE)) {
+			dev_err(labibb->dev,
+				"qcom_labibb: unknown peripheral type\n");
 			return -EINVAL;
+		} else if (type != reg->type) {
+			dev_err(labibb->dev,
+				"qcom_labibb: type read %x doesn't match DT %x\n",
+				type, reg->type);
+			return -EINVAL;
+		}
 
-		labibb_reg  = devm_kzalloc(&pdev->dev, sizeof(*labibb_reg),
-					   GFP_KERNEL);
-		if (!labibb_reg)
-			return -ENOMEM;
-
-		labibb_reg->regmap = reg_regmap;
-		labibb_reg->dev = dev;
-
-		dev_info(dev, "Registering %s regulator\n", child->full_name);
-
-		labibb_reg->rdev = register_labibb_regulator(labibb_reg, reg_data, child);
-		if (IS_ERR(labibb_reg->rdev)) {
-			dev_err(dev,
-				"qcom_labibb: error registering %s : %d\n",
+		ret = register_labibb_regulator(labibb, reg, child);
+		if (ret < 0) {
+			dev_err(&pdev->dev,
+				"qcom_labibb: error registering %s regulator: %d\n",
 				child->full_name, ret);
-			return PTR_ERR(labibb_reg->rdev);
+			return ret;
 		}
 	}
 
+	dev_set_drvdata(&pdev->dev, labibb);
 	return 0;
 }
 
 static struct platform_driver qcom_labibb_regulator_driver = {
-	.driver	= {
-		.name = "qcom-lab-ibb-regulator",
+	.driver		= {
+		.name		= "qcom-lab-ibb-regulator",
 		.of_match_table	= qcom_labibb_match,
 	},
-	.probe = qcom_labibb_regulator_probe,
+	.probe		= qcom_labibb_regulator_probe,
 };
 module_platform_driver(qcom_labibb_regulator_driver);
 
